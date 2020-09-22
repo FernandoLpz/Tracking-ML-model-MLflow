@@ -1,0 +1,4 @@
+artifact_location: file:///Users/Fer/Documents/OwnRepo/TestingMLflow/mlruns/1
+experiment_id: '1'
+lifecycle_stage: active
+name: mushroom
