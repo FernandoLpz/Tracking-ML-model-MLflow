@@ -29,13 +29,17 @@ class Pipeline:
 
    def load_data(self):
       # Logging
-      logging.info(f"{self.dataset_path}")
-      mlflow.log_artifact(f"{self.dataset_path}")
+      logging.info(f"Loading file at {self.dataset_path}")
       
       # Read dataset
       self.dataset = pd.read_csv(self.dataset_path)
       
+      mlflow.log_artifact(f"{self.dataset_path}")
+      
    def preprocessing(self):
+      # Logging
+      logging.info(f"Preprocessing dataset")
+   
       # Encoding categorical features
       columns_to_be_encoded = self.dataset.drop(['Class'], axis=1).columns
       self.x = pd.get_dummies(self.dataset.drop(['Class'], axis=1), columns=columns_to_be_encoded)
@@ -47,11 +51,13 @@ class Pipeline:
       self.y = self.dataset['Class']
 
    def split_data(self):
-      logging.info(f"splitting data")
+      # Logging
+      logging.info(f"Split data into train and test")
       self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x,self.y, test_size=0.2)
       
    def parameter_tuning(self):
-      logging.info(f"training model")
+      # Logging
+      logging.info(f"Applying grid search for parameter tuning")
       
       # Defining parameters grid
       parameters = {'criterion': ['gini','entropy'], 'splitter': ['best','random'], 'max_depth': [2,3,4]}
@@ -68,36 +74,39 @@ class Pipeline:
       mlflow.log_param(f'best_max_depth', self.best_max_depth)
       mlflow.log_param(f'best_criterion', self.best_criterion)
       mlflow.log_param(f'best_splitter', self.best_splitter)
-      mlflow.log_metric('best_score', grid.best_score_)
+      mlflow.log_metric(f'best_score', grid.best_score_)
       
    def k_fold_cross_validation(self):
+      # Logging
+      logging.info(f"Applying k-fold cross validation")
+      
       self.tree = DecisionTreeClassifier(max_depth=self.best_max_depth, splitter=self.best_splitter, criterion=self.best_criterion)
       kfold_scores = cross_val_score(self.tree, self.x_train, self.y_train, cv=5)
-
-      print(f"Average accuracy: {kfold_scores.mean()}")
-      print(f"Std accuracy: +/-{kfold_scores.std()}")
-   
+      
+      mlflow.log_metric(f"average_accuracy", kfold_scores.mean())
+      mlflow.log_metric(f"std_accuracy", kfold_scores.std())
       
    def model_evaluation(self):
-      logging.info(f"calculating metrics")
+      logging.info(f"Model evaluation")
       
       self.tree.fit(self.x_train, self.y_train)
-      print(f"\nTrain accuracy: {self.tree.score(self.x_train, self.y_train)}")
-      print(f"Test accuracy: {self.tree.score(self.x_test, self.y_test)}")
+
+      mlflow.log_metric(f"train_accuracy", self.tree.score(self.x_train, self.y_train))
+      mlflow.log_metric(f"test_accuracy", self.tree.score(self.x_test, self.y_test))
 
 
 if __name__ == '__main__':
    dataset_path = sys.argv[1]
    
    # Init logging
-   logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+   logging.basicConfig(format='%(levelname)s - %(asctime)s - %(message)s', level=logging.INFO, filename='example.log')
    
    # Initi Mlflow client
    client = MlflowClient()
-   idx = client.create_experiment("mushroom")
-   # experiment = client.get_experiment_by_name("mushroom")
+   # idx = client.create_experiment("mushroom")
+   experiment = client.get_experiment_by_name("mushroom")
    
-   with mlflow.start_run(experiment_id=idx):
+   with mlflow.start_run(experiment_id=experiment):
       pipeline = Pipeline(dataset_path)
       pipeline.load_data()
       pipeline.preprocessing()
