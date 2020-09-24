@@ -74,7 +74,6 @@ class Pipeline:
       mlflow.log_param(f'best_max_depth', self.best_max_depth)
       mlflow.log_param(f'best_criterion', self.best_criterion)
       mlflow.log_param(f'best_splitter', self.best_splitter)
-      mlflow.log_metric(f'best_score', grid.best_score_)
       
    def k_fold_cross_validation(self):
       # Logging
@@ -86,6 +85,9 @@ class Pipeline:
       mlflow.log_metric(f"average_accuracy", kfold_scores.mean())
       mlflow.log_metric(f"std_accuracy", kfold_scores.std())
       
+      for score in kfold_scores:
+         mlflow.log_metric(f"kfold_accuracy", score)
+      
    def model_evaluation(self):
       logging.info(f"Model evaluation")
       
@@ -96,17 +98,24 @@ class Pipeline:
 
 
 if __name__ == '__main__':
-   dataset_path = sys.argv[1]
-   
    # Init logging
    logging.basicConfig(format='%(levelname)s - %(asctime)s - %(message)s', level=logging.INFO, filename='example.log')
    
+   dataset_path = sys.argv[1]
+   
+   project_name = "mushroom"
+   
    # Initi Mlflow client
    client = MlflowClient()
-   # idx = client.create_experiment("mushroom")
-   experiment = client.get_experiment_by_name("mushroom")
-   
-   with mlflow.start_run(experiment_id=experiment):
+
+   try:
+      experiment_id = client.create_experiment(project_name)
+      logging.info(f"The experiment {project_name} was created with id={experiment_id} ")
+   except:
+      experiment_id = client.get_experiment_by_name(project_name).experiment_id
+      logging.info(f"The id={experiment_id} from experiment {project_name} was retrieved successfully")
+
+   with mlflow.start_run(experiment_id=experiment_id):
       pipeline = Pipeline(dataset_path)
       pipeline.load_data()
       pipeline.preprocessing()
