@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/Fer/Documents/OwnRepo/TestingMLflow/mlruns/1/90d3bfeb94644e27b3a9c5cc026ccfa2/artifacts
+end_time: 1601002768359
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: 90d3bfeb94644e27b3a9c5cc026ccfa2
+run_uuid: 90d3bfeb94644e27b3a9c5cc026ccfa2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1601002765296
+status: 4
+tags: []
+user_id: Fer

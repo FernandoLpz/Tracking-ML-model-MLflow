@@ -1,7 +1,0 @@
-INFO - 2020-09-23 21:58:26,263 - The experiment mushroom was created with id=1 
-INFO - 2020-09-23 21:58:26,400 - Loading file at data/mushroom.csv
-INFO - 2020-09-23 21:58:26,436 - Preprocessing dataset
-INFO - 2020-09-23 21:58:26,497 - Split data into train and test
-INFO - 2020-09-23 21:58:26,508 - Applying grid search for parameter tuning
-INFO - 2020-09-23 21:58:27,728 - Applying k-fold cross validation
-INFO - 2020-09-23 21:58:27,864 - Model evaluation

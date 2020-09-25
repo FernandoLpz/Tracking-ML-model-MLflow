@@ -9,10 +9,20 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_val_score
+from dataclasses import dataclass
+
+@dataclass
+class Parameters:
+   # Preprocessing parameeters
+   data_name: str
+   data_path: str = f"data"
+   k_folds: int = 10
+   test_size: float = 0.1
 
 class Pipeline:
-   def __init__(self, dataset_path):
-      self.dataset_path = dataset_path
+   def __init__(self, params):
+      self.params = params
+      self.dataset_path = f"{params.data_path}/{params.data_name}.csv"
       self.dataset = None
       self.clf = None
       self.x = None
@@ -34,6 +44,7 @@ class Pipeline:
       # Read dataset
       self.dataset = pd.read_csv(self.dataset_path)
       
+      # Save artifact
       mlflow.log_artifact(f"{self.dataset_path}")
       
    def preprocessing(self):
@@ -53,7 +64,7 @@ class Pipeline:
    def split_data(self):
       # Logging
       logging.info(f"Split data into train and test")
-      self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x,self.y, test_size=0.2)
+      self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x,self.y, test_size=self.params.test_size)
       
    def parameter_tuning(self):
       # Logging
@@ -64,7 +75,7 @@ class Pipeline:
       
       # Grid search
       tree = DecisionTreeClassifier()
-      grid = GridSearchCV(tree, parameters, cv=5)
+      grid = GridSearchCV(tree, parameters, cv=self.params.k_folds)
       grid.fit(self.x_train, self.y_train)
       
       self.best_max_depth = grid.best_params_['max_depth']
@@ -80,13 +91,10 @@ class Pipeline:
       logging.info(f"Applying k-fold cross validation")
       
       self.tree = DecisionTreeClassifier(max_depth=self.best_max_depth, splitter=self.best_splitter, criterion=self.best_criterion)
-      kfold_scores = cross_val_score(self.tree, self.x_train, self.y_train, cv=5)
+      kfold_scores = cross_val_score(self.tree, self.x_train, self.y_train, cv=self.params.k_folds)
       
       mlflow.log_metric(f"average_accuracy", kfold_scores.mean())
       mlflow.log_metric(f"std_accuracy", kfold_scores.std())
-      
-      for score in kfold_scores:
-         mlflow.log_metric(f"kfold_accuracy", score)
       
    def model_evaluation(self):
       logging.info(f"Model evaluation")
@@ -95,31 +103,50 @@ class Pipeline:
 
       mlflow.log_metric(f"train_accuracy", self.tree.score(self.x_train, self.y_train))
       mlflow.log_metric(f"test_accuracy", self.tree.score(self.x_test, self.y_test))
+      
+   def save_model(self):
+      logging.info(f"Saving model")
+      mlflow.sklearn.save_model(self.tree, f"model/mymodel_3", serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_PICKLE)
 
 
 if __name__ == '__main__':
    # Init logging
-   logging.basicConfig(format='%(levelname)s - %(asctime)s - %(message)s', level=logging.INFO, filename='example.log')
+   logging.basicConfig(format='%(levelname)s - %(asctime)s - %(message)s', level=logging.INFO, filename='logs/example.log')
    
-   dataset_path = sys.argv[1]
-   
-   project_name = "mushroom"
-   
-   # Initi Mlflow client
-   client = MlflowClient()
-
+   # If data name is provided by commanda line, success
+   # If data name is not provided, shows an exception
    try:
-      experiment_id = client.create_experiment(project_name)
-      logging.info(f"The experiment {project_name} was created with id={experiment_id} ")
+      # Gets data name from command line
+      data_name = sys.argv[1]
    except:
-      experiment_id = client.get_experiment_by_name(project_name).experiment_id
-      logging.info(f"The id={experiment_id} from experiment {project_name} was retrieved successfully")
+      print(f"You must provide a dataname, please try:\npython main.py [dataname]")
 
-   with mlflow.start_run(experiment_id=experiment_id):
-      pipeline = Pipeline(dataset_path)
-      pipeline.load_data()
-      pipeline.preprocessing()
-      pipeline.split_data()
-      pipeline.parameter_tuning()
-      pipeline.k_fold_cross_validation()
-      pipeline.model_evaluation()
+   # Init parameters
+   params = Parameters(data_name)
+   if os.path.isfile(f"{params.data_path}/{params.data_name}.csv"):
+
+      # Initi Mlflow client
+      client = MlflowClient()
+      
+      # If the project does not exists, it creates a new one
+      # If the project already exists, it is taken the project id
+      try:
+         # Creates a new experiment
+         experiment_id = client.create_experiment(data_name)
+         logging.info(f"The experiment {data_name} was created with id={experiment_id} ")
+      except:
+         # Retrieves the experiment id from the already created project
+         experiment_id = client.get_experiment_by_name(data_name).experiment_id
+         logging.info(f"The id={experiment_id} from experiment {data_name} was retrieved successfully")
+      
+      # Initialize mlflow context
+      with mlflow.start_run(experiment_id=experiment_id):
+         # Pipeline execution
+         pipeline = Pipeline(params)
+         pipeline.load_data()
+         pipeline.preprocessing()
+         pipeline.split_data()
+         pipeline.parameter_tuning()
+         pipeline.k_fold_cross_validation()
+         pipeline.model_evaluation()
+         pipeline.save_model()
