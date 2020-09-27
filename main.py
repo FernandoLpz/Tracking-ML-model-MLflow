@@ -32,7 +32,6 @@ class Pipeline:
       self.params = params
       self.dataset_path = f"{params.data_path}/{params.data_name}.csv"
       self.dataset = None
-      self.clf = None
       self.x = None
       self.y = None
       self.x_train = None
@@ -62,7 +61,7 @@ class Pipeline:
       for idx, class_name in enumerate(classes):
          self.dataset['Class'] = self.dataset['Class'].replace(class_name, idx)
       self.y = self.dataset['Class']
-
+   
    def split_data(self):
       self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x,self.y, test_size=self.params.test_size)
       
@@ -94,18 +93,21 @@ class Pipeline:
    def model_evaluation(self):
       
       self.tree.fit(self.x_train, self.y_train)
-
+   
       mlflow.log_metric(f"train_accuracy", self.tree.score(self.x_train, self.y_train))
       mlflow.log_metric(f"test_accuracy", self.tree.score(self.x_test, self.y_test))
       
-   def save_model(self):
-      
-      fig, axes = plt.subplots(nrows = 1,ncols = 1,figsize = (4,4), dpi=300)
-      tree.plot_tree(self.tree)
-      fig.savefig(f"{self.params.img_path}/tree_{self.params.data_name}.png")
-      
-      mlflow.sklearn.save_model(self.tree, f"{self.params.model_path}/sklearn_{data_name}", serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_PICKLE)
-      mlflow.log_artifact(f"{self.params.img_path}/tree_{self.params.data_name}.png")
+      def save_model(self):
+         # Creates the tree topology
+         fig, axes = plt.subplots(nrows = 1,ncols = 1,figsize = (4,4), dpi=300)
+         tree.plot_tree(self.tree)
+         # Save the tree
+         fig.savefig(f"{self.params.img_path}/tree_{self.params.data_name}.png")
+         
+         # Track the optimum model
+         mlflow.sklearn.save_model(self.tree, f"{self.params.model_path}/sklearn_{data_name}", serialization_format=mlflow.sklearn.SERIALIZATION_FORMAT_PICKLE)
+         # Track the decision tree image
+         mlflow.log_artifact(f"{self.params.img_path}/tree_{self.params.data_name}.png")
 
 
 if __name__ == '__main__':
